@@ -1,0 +1,15 @@
+python bot.py
+nano bot.py
+pkg install
+python botmpy
+python bot.py
+nano bot.py
+python bot.py
+nano bot.py
+python bot.py
+nano bot.py
+python bot.py
+nano bot.py
+python bot.py
+nano bot.py
+python bot.py
