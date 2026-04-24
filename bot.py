@@ -18,7 +18,7 @@ from telegram.ext import (
     filters
 )
 
-# ===== LOGGING (ANTI CRASH) =====
+# ===== LOGGING =====
 logging.basicConfig(level=logging.INFO)
 
 TOKEN = "8277850902:AAEqZvdZpGIvVQxQkpdD782K-qxcu1EVNbs"
@@ -32,9 +32,15 @@ def load_data():
     except:
         data = {}
 
-    data.setdefault("global_bad_words", ["anjing", "babi"])
-    data.setdefault("chats", {})
+    data.setdefault("global_bad_words", [
+        "anjing","babi","bangsat","kontol","memek","ngentot",
+        "tolol","goblok","idiot","asu","kampret","brengsek",
+        "tai","jancok","bajingan","keparat","setan","laknat",
+        "biadab","monyet","sialan","puki","coli","pepek",
+        "ngentod","ngentot","kontlo","memex","anjir","anjay"
+    ])
 
+    data.setdefault("chats", {})
     return data
 
 def save_data(data):
@@ -63,7 +69,7 @@ def get_chat_cfg(chat_id):
 # ===== RATE LIMIT =====
 user_msgs = defaultdict(lambda: deque(maxlen=5))
 
-# ===== CEK ADMIN =====
+# ===== ADMIN CHECK =====
 async def is_admin(chat, user_id):
     try:
         m = await chat.get_member(user_id)
@@ -71,12 +77,19 @@ async def is_admin(chat, user_id):
     except:
         return False
 
-# ===== DELETE AMAN =====
+# ===== DELETE =====
 async def safe_delete(msg):
     try:
         await msg.delete()
     except:
         pass
+
+# ===== DETEKSI KATA LEBIH KUAT 🔥 =====
+def normalize(text):
+    text = text.lower()
+    text = text.replace("0", "o").replace("1", "i").replace("3", "e")
+    text = re.sub(r"(.)\1+", r"\1", text)  # anjinggg → anjing
+    return text
 
 # ===== MODERASI =====
 async def moderate(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -90,15 +103,14 @@ async def moderate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = msg.chat
     user = msg.from_user
     text = msg.text
-    text_l = text.lower()
+    text_l = normalize(text)
 
     cfg = get_chat_cfg(chat.id)
 
-    # skip admin
     if await is_admin(chat, user.id):
         return
 
-    # ===== ANTI SPAM =====
+    # ===== SPAM =====
     now = time.time()
     q = user_msgs[user.id]
     q.append(now)
@@ -107,7 +119,7 @@ async def moderate(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_delete(msg)
         return
 
-    # ===== ANTI REPEAT =====
+    # ===== REPEAT =====
     if cfg["settings"]["anti_repeat"]:
         last = context.user_data.get("last")
         if last == text_l:
@@ -115,18 +127,17 @@ async def moderate(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         context.user_data["last"] = text_l
 
-    # ===== ANTI CAPS =====
+    # ===== CAPS =====
     if cfg["settings"]["anti_caps"]:
         if text.isupper() and len(text) > 6:
             await safe_delete(msg)
             await chat.send_message(f"🔠 Jangan caps {user.first_name}")
             return
 
-    # ===== SENSOR KATA =====
+    # ===== SENSOR KATA 🔥 =====
     if cfg["settings"]["sensor"]:
         for w in cfg["bad_words"]:
-            if re.search(rf"\b{re.escape(w)}\b", text_l):
-
+            if w in text_l:
                 await safe_delete(msg)
 
                 uid = str(user.id)
@@ -138,7 +149,7 @@ async def moderate(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"⚠️ {user.first_name}\nWarning: {warn}/5"
                 )
 
-                # ===== MUTE =====
+                # MUTE
                 if warn == 3 and cfg["settings"]["mute_on_3"]:
                     try:
                         await chat.restrict_member(
@@ -150,7 +161,7 @@ async def moderate(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     except:
                         pass
 
-                # ===== KICK =====
+                # KICK
                 if warn >= 5 and cfg["settings"]["kick_on_5"]:
                     try:
                         await chat.ban_member(user.id)
@@ -160,7 +171,7 @@ async def moderate(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 return
 
-    # ===== ANTI LINK =====
+    # ===== LINK =====
     if cfg["settings"]["anti_link"]:
         if "http://" in text_l or "https://" in text_l or "t.me/" in text_l:
             await safe_delete(msg)
